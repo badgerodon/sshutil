@@ -3,8 +3,11 @@ package sshutil
 import (
 	"archive/tar"
 	"code.google.com/p/go.crypto/ssh"
+	"io"
+	"log"
+	"os"
 	"path"
-	"path/filepath"
+	"strings"
 )
 
 func cleanName(name string) string {
