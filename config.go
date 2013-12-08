@@ -71,12 +71,13 @@ func parseConfigFile(rd io.Reader) (*configFile, error) {
 }
 
 func (this *configFile) getOptions(hostname string) []configFileOption {
+	options := []configFileOption{}
 	for _, host := range this.hosts {
 		if host.pattern.MatchString(hostname) {
-			return host.options
+			options = append(options, host.options...)
 		}
 	}
-	return []configFileOption{}
+	return options
 }
 
 func getUserName(options []configFileOption) string {
@@ -150,24 +151,28 @@ func Dial(hostname string) (*ssh.ClientConn, error) {
 		cfg, err := parseConfigFile(f)
 		if err == nil {
 			options = cfg.getOptions(hostname)
+		} else {
+			log.Println("[ssh]", "[error]", err)
 		}
+	} else {
+		log.Println("[ssh]", "[error]", err)
 	}
 
 	port := 22
 	username := getUserName(options)
 	for _, kv := range options {
-		switch kv.key {
-		case "HostName":
+		switch strings.ToLower(kv.key) {
+		case "hostname":
 			hostname = kv.value
-		case "Port":
+		case "port":
 			port, _ = strconv.Atoi(kv.value)
 		}
 	}
 
 	auths := []ssh.ClientAuth{}
 	for _, kv := range options {
-		switch kv.key {
-		case "IdentityFile":
+		switch strings.ToLower(kv.key) {
+		case "identityfile":
 			keychain, err := GetKeyChain(toAbsolute(hostname, username, kv.value))
 			if err == nil {
 				auths = append(auths, ssh.ClientAuthKeyring(keychain))
@@ -175,7 +180,7 @@ func Dial(hostname string) (*ssh.ClientConn, error) {
 		}
 	}
 
-	log.Println("Dialing ", hostname, port, username, auths)
+	log.Println("[ssh]", "dialing", fmt.Sprint(username+"@"+hostname, port))
 
 	return ssh.Dial("tcp", fmt.Sprint(hostname, ":", port), &ssh.ClientConfig{
 		User: username,
